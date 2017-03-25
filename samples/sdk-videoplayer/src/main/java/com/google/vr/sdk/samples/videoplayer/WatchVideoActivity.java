@@ -109,65 +109,11 @@ public class WatchVideoActivity extends Activity implements VideoExoPlayer.Liste
     gvrLayout.setKeepScreenOn(true);
     renderer = new VideoSceneRenderer(this, gvrLayout.getGvrApi());
 
-    // Initialize the ExternalSurfaceListener to receive video Surface callbacks.
-    hasFirstFrame = false;
-    ExternalSurfaceListener videoSurfaceListener =
-        new ExternalSurfaceListener() {
-          @Override
-          public void onSurfaceAvailable(Surface surface) {
-            // Set the surface for the video player to output video frames to. Video playback
-            // is started when the Surface is set. Note that this callback is *asynchronous* with
-            // respect to the Surface becoming available, in which case videoPlayer may be null due
-            // to the Activity having been stopped.
-            if (videoPlayer != null) {
-              videoPlayer.setSurface(surface);
-            }
-          }
-
-          @Override
-          public void onFrameAvailable() {
-            // If this is the first frame, and the Activity is still in the foreground, signal to
-            // remove the loading splash screen, and draw alpha 0 in the color buffer where the
-            // video will be drawn by the GvrApi.
-            if (!hasFirstFrame && videoPlayer != null) {
-              surfaceView.queueEvent(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    renderer.setHasVideoPlaybackStarted(true);
-                  }
-                });
-
-              hasFirstFrame = true;
-            }
-          }
-        };
-
-    // Note that the video Surface must be enabled before enabling Async Reprojection.
-    // Async Reprojection must be enabled for the app to be able to use the video Surface.
-    boolean isSurfaceEnabled =
-        gvrLayout.enableAsyncReprojectionVideoSurface(
-            videoSurfaceListener,
-            new Handler(Looper.getMainLooper()),
-            Configuration.SECURE_EGL_CONTEXT /* Whether video playback needs a secure context. */);
-    boolean isAsyncReprojectionEnabled = gvrLayout.setAsyncReprojectionEnabled(true);
-
-    if (!isSurfaceEnabled || !isAsyncReprojectionEnabled) {
-      // The device does not support this API, video will not play.
-      Log.e(
-          TAG,
-          "UnsupportedException: "
-              + (!isAsyncReprojectionEnabled ? "Async Reprojection not supported. " : "")
-              + (!isSurfaceEnabled ? "Async Reprojection Video Surface not enabled." : ""));
-    } else {
       initVideoPlayer();
 
       // The default value puts the viewport behind the eye, so it's invisible. Set the transform
       // now to ensure the video is visible when rendering starts.
       renderer.setVideoTransform(videoTransform);
-      // The ExternalSurface buffer the GvrApi should reference when drawing the video buffer. This
-      // must be called after enabling the Async Reprojection video surface.
-      renderer.setVideoSurfaceId(gvrLayout.getAsyncReprojectionVideoSurfaceId());
 
       // Simulate cardboard trigger to play/pause video playback.
       gvrLayout.enableCardboardTriggerEmulation(triggerRunnable);
@@ -182,7 +128,6 @@ public class WatchVideoActivity extends Activity implements VideoExoPlayer.Liste
               return false;
             }
           });
-    }
 
     // Set the renderer and start the app's GL thread.
     surfaceView.setRenderer(renderer);
